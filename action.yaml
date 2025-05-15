@@ -1,0 +1,80 @@
+name: 'Build and Push Image'
+description: ''
+
+inputs:
+  jfrog_url:
+    description: 'URL of the JFrog Artifactory'
+    required: true
+  jfrog_project:
+    description: 'Key of the JFrog Artifactory project'
+    required: true
+  registry_url:
+    description: 'URL of the Artifactory registry'
+    required: true
+  image_name:
+    description: 'Name of the image'
+    required: true
+  image_tags:
+    description: 'Tags for the image (comma-separated)'
+    required: true
+  platforms:
+    description: 'Comma-separated list of platforms (e.g., linux/amd64,linux/arm64)'
+    required: true
+  cache_from:
+    description: 'List of external cache sources (e.g., type=local,src=path/to/dir)'
+    default: type=gha
+    required: false
+  cache_to:
+    description: 'List of cache export destinations (e.g., type=local,dest=path/to/dir)'
+    default: type=gha,mode=max
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install JFrog CLI and login
+      id: jfrog
+      uses: jfrog/setup-jfrog-cli@v4
+      env:
+        JF_URL: ${{ inputs.jfrog_url }}
+        JF_PROJECT: ${{ inputs.jfrog_project }}
+      with:
+        oidc-provider-name: github-nethermindeth
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry_url }}
+        username: ${{ steps.jfrog.outputs.oidc-user }}
+        password: ${{ steps.jfrog.outputs.oidc-token }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Generate image tags
+      shell: bash
+      run: |
+        IMAGE_TAGS=$(echo "${{ inputs.image_tags }}" | tr "," "\n")
+        IMAGE_TAGS=$(echo "${IMAGE_TAGS}" | sed "s#^#${{ inputs.registry_url }}/${{ inputs.image_name }}:#")
+        echo "IMAGE_TAGS=${IMAGE_TAGS}" >> $GITHUB_ENV
+
+    - name: Build and push
+      id: build
+      uses: docker/build-push-action@v6
+      with:
+        push: true
+        platforms: ${{ inputs.platforms }}
+        tags: ${{ env.IMAGE_TAGS }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Attest
+      uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+      id: attest
+      with:
+        subject-name: ${{ inputs.registry_url }}/${{ inputs.image_name }}
+        subject-digest: ${{ steps.build.outputs.digest }}
+        push-to-registry: true
