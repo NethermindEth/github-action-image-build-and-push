@@ -1,0 +1,42 @@
+name: Build and Push to Artifactory
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+
+env:
+  IMAGE_NAME: nubia-oci-local-dev/juno
+  REGISTRY_URL: nethermind.jfrog.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install JFrog CLI
+        id: jfrog
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: https://${{ env.REGISTRY_URL }}
+        with:
+          oidc-provider-name: github-nethermindeth
+
+      - name: Login to Artifactory
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_URL }}
+          username: ${{ steps.jfrog.outputs.oidc-user }}
+          password: ${{ steps.jfrog.outputs.oidc-token }}
+
+      - name: Build and push Docker image
+        uses: NethermindEth/github-action-image-build-and-push@v1
+        with:
+          registry: "artifactory"
+          image_name: ${{ env.IMAGE_NAME }}
+          image_tags: "latest,${{ github.ref_name }}"
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
