@@ -1,80 +1,169 @@
-name: 'Build and Push Image'
-description: ''
+name: "Build and Push Image"
+description: "Build and push a docker/oci image to a registry"
 
 inputs:
-  jfrog_url:
-    description: 'URL of the JFrog Artifactory'
-    required: true
-  jfrog_project:
-    description: 'Key of the JFrog Artifactory project'
-    required: true
-  registry_url:
-    description: 'URL of the Artifactory registry'
+  push-to-registry:
+    description: "Push to registry.  Set to false if you want to only build the image and not push it."
+    required: false
+    default: "true"
+  registry:
+    description: 'Either "dockerhub" or "artifactory"'
     required: true
   image_name:
-    description: 'Name of the image'
+    description: "Name of the image"
     required: true
   image_tags:
-    description: 'Tags for the image (comma-separated)'
+    description: "Tags for the image (comma-separated)"
     required: true
   platforms:
-    description: 'Comma-separated list of platforms (e.g., linux/amd64,linux/arm64)'
-    required: true
+    description: "Comma-separated list of platforms (e.g., linux/amd64,linux/arm64)"
+    required: false
+    default: "linux/amd64,linux/arm64"
+  context:
+    description: "Build's context is the set of files located in the specified PATH or URL"
+    default: "."
+    required: false
+  dockerfile_path:
+    description: "Path to Dockerfile"
+    default: "Dockerfile"
+    required: false
+  setup-qemu:
+    description: "Set up QEMU"
+    default: "false"
+    required: false
   cache_from:
-    description: 'List of external cache sources (e.g., type=local,src=path/to/dir)'
+    description: "List of external cache sources (e.g., type=local,src=path/to/dir)"
     default: type=gha
     required: false
   cache_to:
-    description: 'List of cache export destinations (e.g., type=local,dest=path/to/dir)'
+    description: "List of cache export destinations (e.g., type=local,dest=path/to/dir)"
     default: type=gha,mode=max
     required: false
+  secrets:
+    description: "List of secrets to expose to the build (e.g., key=string, GIT_AUTH_TOKEN=mytoken)"
+    required: false
+    default: ""
+  secret-envs:
+    description: "List of secret env vars to expose to the build (e.g., key=envname, MY_SECRET=MY_ENV_VAR)"
+    required: false
+    default: ""
+  secret-files:
+    description: "List of secret files to expose to the build (e.g., key=filename, MY_SECRET=./secret.txt)"
+    required: false
+    default: ""
+  ulimit:
+    description: "Ulimit options (e.g., nofile=1024:1024)"
+    required: false
+    default: ""
+  build-args:
+    description: "List of build-time variables"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
   steps:
-    - name: Install JFrog CLI and login
-      id: jfrog
-      uses: jfrog/setup-jfrog-cli@v4
-      env:
-        JF_URL: ${{ inputs.jfrog_url }}
-        JF_PROJECT: ${{ inputs.jfrog_project }}
-      with:
-        oidc-provider-name: github-nethermindeth
-
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ inputs.registry_url }}
-        username: ${{ steps.jfrog.outputs.oidc-user }}
-        password: ${{ steps.jfrog.outputs.oidc-token }}
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Generate image tags
+    - name: Setup environment
       shell: bash
       run: |
-        IMAGE_TAGS=$(echo "${{ inputs.image_tags }}" | tr "," "\n")
-        IMAGE_TAGS=$(echo "${IMAGE_TAGS}" | sed "s#^#${{ inputs.registry_url }}/${{ inputs.image_name }}:#")
-        echo "IMAGE_TAGS=${IMAGE_TAGS}" >> $GITHUB_ENV
+        if [[ "${{ inputs.registry }}" == "dockerhub" ]]; then
+          export REGISTRY_URL="docker.io"
+          export IMAGE_NAME="${{ inputs.image_name }}"
+        elif [[ "${{ inputs.registry }}" == "artifactory" ]]; then
+          export REGISTRY_URL="nethermind.jfrog.io"
+          export IMAGE_NAME="${REGISTRY_URL}/${{ inputs.image_name }}"
+        else
+          echo "Invalid registry. Choose 'dockerhub' or 'artifactory'"
+          exit 1
+        fi
 
-    - name: Build and push
-      id: build
-      uses: docker/build-push-action@v6
+        echo "REGISTRY_URL=${REGISTRY_URL}" >> $GITHUB_ENV
+        echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+
+        # A single platform is needed for trivy and for the build-push action
+        echo "PLATFORM=$(echo ${{ inputs.platforms }} | cut -d ',' -f 1)" >> $GITHUB_ENV
+
+    - name: Set up QEMU
+      if: ${{ inputs.setup-qemu == 'true' }}
+      uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
       with:
-        push: true
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=latest
+          type=ref,event=branch
+          type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
+          type=sha
+          ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
+
+    - name: Build temporary image
+      # The idea here is to first build the image without pushing it, so it can be
+      # scanned by Trivy.
+      # Also, since it's not going to be pushed, it MUST use a single platform
+      # Ref: https://github.com/docker/buildx/issues/59
+      # The usage of cache helps the next step when it builds again, but multi-arch
+      id: build_temporary
+      uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile_path }}
+        platforms: ${{ env.PLATFORM }}
+        tags: temporary-tag
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: ${{ inputs.cache_from }}
+        cache-to: ${{ inputs.cache_to }}
+        load: true
+        push: false
+        secrets: ${{ inputs.secrets }}
+        secret-envs: ${{ inputs.secret-envs }}
+        secret-files: ${{ inputs.secret-files }}
+        ulimit: ${{ inputs.ulimit }}
+        build-args: ${{ inputs.build-args }}
+
+    - name: Run Trivy vulnerability scanner
+      id: trivy
+      uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # v0.30.0
+      with:
+        image-ref: ${{ steps.build_temporary.outputs.imageid }}
+        format: "table"
+        output: "trivy-results.txt"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: "CRITICAL,HIGH"
+        trivyignores: ./.trivyignore
+      env:
+        TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+        TRIVY_DISABLE_VEX_NOTICE: true
+
+    - name: Build
+      id: build
+      uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile_path }}
         platforms: ${{ inputs.platforms }}
-        tags: ${{ env.IMAGE_TAGS }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: ${{ inputs.cache_from }}
+        cache-to: ${{ inputs.cache_to }}
+        load: false
+        push: ${{ inputs.push-to-registry == 'true' }}
+        secrets: ${{ inputs.secrets }}
+        secret-envs: ${{ inputs.secret-envs }}
+        secret-files: ${{ inputs.secret-files }}
+        ulimit: ${{ inputs.ulimit }}
+        build-args: ${{ inputs.build-args }}
 
     - name: Attest
       uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
       id: attest
       with:
-        subject-name: ${{ inputs.registry_url }}/${{ inputs.image_name }}
+        subject-name: ${{ steps.meta.outputs.tags }}
         subject-digest: ${{ steps.build.outputs.digest }}
         push-to-registry: true
