@@ -1,0 +1,23 @@
+# Example .trivyignore file
+# 
+# This file allows you to suppress specific vulnerabilities from failing the build.
+# Copy this file to `.trivyignore` in your repository root and customize as needed.
+#
+# Format: Each line should contain a vulnerability ID
+#
+# Examples:
+
+# Suppress a specific CVE that may be a false positive or accepted risk
+# CVE-2023-12345
+
+# Suppress vulnerabilities in specific packages (if you can't update them immediately)
+# CVE-2023-67890  # nodejs vulnerability - updating in next sprint
+
+# You can also add comments to document why you're suppressing certain vulnerabilities
+# CVE-2023-11111  # Low impact, fix not available yet, tracking in JIRA-1234
+
+# Alpine Linux packages that may show up frequently
+# CVE-2023-22222  # Alpine apk tools - waiting for upstream fix
+
+# Note: Only suppress vulnerabilities after careful consideration
+# Always document the reason and create a plan to address them 
