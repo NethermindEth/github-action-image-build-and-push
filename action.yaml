@@ -167,3 +167,35 @@ runs:
         subject-name: ${{ steps.meta.outputs.tags }}
         subject-digest: ${{ steps.build.outputs.digest }}
         push-to-registry: true
+
+    - name: Summary
+      if: always()
+      shell: bash
+      run: |
+        echo "### Build status" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Build and push successful" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r TAG; do
+          echo "- $TAG" >> $GITHUB_STEP_SUMMARY
+        done
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+        echo "### Trivy Scan Output" >> $GITHUB_STEP_SUMMARY
+        if [[ -f trivy-results.txt ]]; then
+          echo "<details><summary>Click to expand</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          while IFS= read -r line; do
+            if [[ $line == "┌"* ]]; then echo '```' >> $GITHUB_STEP_SUMMARY; fi
+            echo "$line" >> $GITHUB_STEP_SUMMARY
+            if [[ $line == *"┘" ]]; then echo '```' >> $GITHUB_STEP_SUMMARY; fi
+          done < trivy-results.txt
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No Trivy report found." >> $GITHUB_STEP_SUMMARY
+        fi
