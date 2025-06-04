@@ -109,7 +109,7 @@ runs:
       # Ref: https://github.com/docker/buildx/issues/59
       # The usage of cache helps the next step when it builds again, but multi-arch
       id: build_temporary
-      uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
@@ -143,7 +143,7 @@ runs:
 
     - name: Build
       id: build
-      uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
