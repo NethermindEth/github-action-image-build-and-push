@@ -59,6 +59,10 @@ inputs:
     description: "List of build-time variables"
     required: false
     default: ""
+  ignore_trivy:
+    description: "Ignore Trivy scan errors"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -135,7 +139,7 @@ runs:
         image-ref: ${{ steps.build_temporary.outputs.imageid }}
         format: "table"
         output: "trivy-results.txt"
-        exit-code: "1"
+        exit-code: ${{ inputs.ignore_trivy == 'true' && '0' || '1' }}
         ignore-unfixed: true
         severity: "CRITICAL,HIGH"
         trivyignores: ./.trivyignore
