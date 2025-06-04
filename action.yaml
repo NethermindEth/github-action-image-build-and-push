@@ -83,6 +83,12 @@ runs:
         # A single platform is needed for trivy and for the build-push action
         echo "PLATFORM=$(echo ${{ inputs.platforms }} | cut -d ',' -f 1)" >> $GITHUB_ENV
 
+        # Create .trivyignore if it doesn't exist
+        if [[ ! -f .trivyignore ]]; then
+          echo "Creating .trivyignore file"
+          touch .trivyignore
+        fi
+
     - name: Set up QEMU
       if: ${{ inputs.setup-qemu == 'true' }}
       uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
