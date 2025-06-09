@@ -242,7 +242,3 @@ Issues and pull requests are welcome! Please ensure you:
 3. Follow the existing code style
 4. Add appropriate tests
 5. Post link to the tests (which will be a workflow running this action)
-
-## License
-
-This action is licensed under the MIT License. See [LICENSE](LICENSE) for details.
