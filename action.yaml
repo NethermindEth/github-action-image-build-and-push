@@ -80,6 +80,9 @@ runs:
         fi
         echo "REGISTRY_URL=${REGISTRY_URL}" >> $GITHUB_ENV
 
+        # Extra tags
+        export GIT_TAGS=$(git describe --tags --always)
+
         # A single platform is needed for trivy and for the build-push action
         echo "PLATFORM=$(echo ${{ inputs.platforms }} | cut -d ',' -f 1)" >> $GITHUB_ENV
 
@@ -107,6 +110,7 @@ runs:
           type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
           type=sha
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
+          type=raw,value=${{ env.GIT_TAGS }}
 
     - name: Build temporary image
       # The idea here is to first build the image without pushing it, so it can be
