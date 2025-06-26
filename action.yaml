@@ -72,13 +72,16 @@ runs:
       run: |
         if [[ "${{ inputs.registry }}" == "dockerhub" ]]; then
           export REGISTRY_URL="docker.io"
+          export ATTESTATION_REGISTRY_URL="index.docker.io"
         elif [[ "${{ inputs.registry }}" == "artifactory" ]]; then
           export REGISTRY_URL="nethermind.jfrog.io"
+          export ATTESTATION_REGISTRY_URL="nethermind.jfrog.io"
         else
           echo "Invalid registry. Choose 'dockerhub' or 'artifactory'"
           exit 1
         fi
         echo "REGISTRY_URL=${REGISTRY_URL}" >> $GITHUB_ENV
+        echo "ATTESTATION_REGISTRY_URL=${ATTESTATION_REGISTRY_URL}" >> $GITHUB_ENV
 
         # Extra tags
         export GIT_TAGS=$(git describe --tags --always)
@@ -175,7 +178,7 @@ runs:
       uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
       id: attest
       with:
-        subject-name: ${{ inputs.image_name }}
+        subject-name: ${{ env.ATTESTATION_REGISTRY_URL }}/{{ inputs.image_name }}
         subject-digest: ${{ steps.build.outputs.digest }}
         push-to-registry: true
 
