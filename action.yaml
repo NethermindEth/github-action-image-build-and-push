@@ -109,9 +109,12 @@ runs:
         images: ${{ env.REGISTRY_URL }}/${{ inputs.image_name }}
         tags: |
           type=raw,value=latest
+          type=raw,value={{commit_date 'YYYYMMDD'}}
+          type=raw,value={{commit_date 'YYYYMMDD'}}-{{sha}}
           type=ref,event=branch
           type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
           type=sha
+          type=sha,prefix=,format=long
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
           type=raw,value=${{ env.GIT_TAGS }}
 
