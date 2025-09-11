@@ -115,6 +115,7 @@ runs:
           type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
           type=sha
           type=sha,prefix=,format=long
+          type=sha,prefix=,format=short
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
           type=raw,value=${{ env.GIT_TAGS }}
 
