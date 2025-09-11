@@ -163,6 +163,8 @@ jobs:
 | `secret-files` | Secret files | ❌ | `""` |
 | `ulimit` | Ulimit options | ❌ | `""` |
 | `build-args` | Build-time variables | ❌ | `""` |
+| `run_trivy` | Run Trivy scan | ❌ | `true` |
+| `ignore_trivy` | Ignore Trivy scan errors | ❌ | `false` |
 
 
 ## Security Features

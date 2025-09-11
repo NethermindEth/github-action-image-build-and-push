@@ -63,6 +63,10 @@ inputs:
     description: "Ignore Trivy scan errors"
     required: false
     default: "false"
+  run_trivy:
+    description: "Run Trivy scan"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -120,6 +124,7 @@ runs:
           type=raw,value=${{ env.GIT_TAGS }}
 
     - name: Build temporary image
+      if: ${{ inputs.run_trivy == 'true' }}
       # The idea here is to first build the image without pushing it, so it can be
       # scanned by Trivy.
       # Also, since it's not going to be pushed, it MUST use a single platform
@@ -144,6 +149,7 @@ runs:
         build-args: ${{ inputs.build-args }}
 
     - name: Run Trivy vulnerability scanner
+      if: ${{ inputs.run_trivy == 'true' }}
       id: trivy
       uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
       with:
