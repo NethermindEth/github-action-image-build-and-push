@@ -212,6 +212,7 @@ runs:
 
         echo "### Trivy Scan Output" >> $GITHUB_STEP_SUMMARY
         if [[ -f trivy-results.txt ]]; then
+          cat trivy-results.txt
           echo "<details><summary>Click to expand</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           while IFS= read -r line; do
