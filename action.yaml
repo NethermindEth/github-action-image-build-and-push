@@ -6,6 +6,11 @@ inputs:
     description: "Push to registry.  Set to false if you want to only build the image and not push it."
     required: false
     default: "true"
+# Yokai specififc changes
+  build_commit:
+    description: "Commit SHA that should be used in image metadata"
+    required: true
+#####
   registry:
     description: 'Either "dockerhub" or "artifactory"'
     required: true
@@ -114,6 +119,9 @@ runs:
         images: ${{ env.REGISTRY_URL }}/${{ inputs.image_name }}
         tags: |
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
+        labels: |
+          org.opencontainers.image.revision=${{ inputs.build_commit }}
+          org.opencontainers.image.source=https://github.com/NethermindEth/yokai-dash
 
         # type=raw,value={{commit_date 'YYYYMMDD'}}
         # type=raw,value={{commit_date 'YYYYMMDD'}}-{{sha}}
