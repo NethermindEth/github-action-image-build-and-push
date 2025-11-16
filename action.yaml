@@ -106,22 +106,24 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+          # type=raw,value=latest
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
       with:
         images: ${{ env.REGISTRY_URL }}/${{ inputs.image_name }}
         tags: |
-          type=raw,value=latest
-          type=raw,value={{commit_date 'YYYYMMDD'}}
-          type=raw,value={{commit_date 'YYYYMMDD'}}-{{sha}}
-          type=ref,event=branch
-          type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
-          type=sha
-          type=sha,prefix=,format=long
-          type=sha,prefix=,format=short
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
-          type=raw,value=${{ env.GIT_TAGS }}
+
+        # type=raw,value={{commit_date 'YYYYMMDD'}}
+        # type=raw,value={{commit_date 'YYYYMMDD'}}-{{sha}}
+        # type=ref,event=branch
+        # type=raw,value=${{ github.ref_type == 'tag' && github.ref_name || '' }},enable=${{ github.ref_type == 'tag' }}
+        # type=sha
+        # type=sha,prefix=,format=long
+        # type=sha,prefix=,format=short
+        # ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
+        # type=raw,value=${{ env.GIT_TAGS }}
 
     - name: Build temporary image
       if: ${{ inputs.run_trivy == 'true' }}
