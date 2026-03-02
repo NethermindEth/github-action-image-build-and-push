@@ -101,14 +101,14 @@ runs:
 
     - name: Set up QEMU
       if: ${{ inputs.setup-qemu == 'true' }}
-      uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+      uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+      uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
       with:
         images: ${{ env.REGISTRY_URL }}/${{ inputs.image_name }}
         tags: |
@@ -131,7 +131,7 @@ runs:
       # Ref: https://github.com/docker/buildx/issues/59
       # The usage of cache helps the next step when it builds again, but multi-arch
       id: build_temporary
-      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
@@ -151,7 +151,7 @@ runs:
     - name: Run Trivy vulnerability scanner
       if: ${{ inputs.run_trivy == 'true' }}
       id: trivy
-      uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
+      uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
       with:
         image-ref: ${{ steps.build_temporary.outputs.imageid }}
         format: "table"
@@ -166,7 +166,7 @@ runs:
 
     - name: Build
       id: build
-      uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
@@ -185,7 +185,7 @@ runs:
 
     - name: Attest
       if: ${{ inputs.push-to-registry == 'true' }}
-      uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
       id: attest
       with:
         subject-name: ${{ env.ATTESTATION_REGISTRY_URL }}/${{ inputs.image_name }}
