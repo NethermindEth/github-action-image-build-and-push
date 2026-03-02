@@ -1,0 +1,7 @@
+# =============================================================================
+# GLOBAL OWNERS
+# =============================================================================
+# These owners will be requested for review on ALL pull requests
+# Uncomment and customize the line below:
+
+* @NethermindEth/role_angkor_github_automation_leader
