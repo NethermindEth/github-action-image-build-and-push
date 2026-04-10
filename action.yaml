@@ -148,6 +148,20 @@ runs:
         ulimit: ${{ inputs.ulimit }}
         build-args: ${{ inputs.build-args }}
 
+    - name: Get current date
+      if: ${{ inputs.run_trivy == 'true' }}
+      id: trivy-cache-date
+      shell: bash
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+    - name: Restore Trivy DB from cache
+      if: ${{ inputs.run_trivy == 'true' }}
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ github.workspace }}/.cache/trivy
+        key: cache-trivy-${{ steps.trivy-cache-date.outputs.date }}
+        restore-keys: cache-trivy-
+
     - name: Run Trivy vulnerability scanner
       if: ${{ inputs.run_trivy == 'true' }}
       id: trivy
@@ -161,6 +175,7 @@ runs:
         severity: "CRITICAL,HIGH"
         trivyignores: ./.trivyignore
         version: "v0.69.2"
+        cache: "false"
       env:
         TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
         TRIVY_DISABLE_VEX_NOTICE: true
