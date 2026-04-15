@@ -131,7 +131,7 @@ runs:
       # Ref: https://github.com/docker/buildx/issues/59
       # The usage of cache helps the next step when it builds again, but multi-arch
       id: build_temporary
-      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
@@ -156,7 +156,7 @@ runs:
 
     - name: Restore Trivy DB from cache
       if: ${{ inputs.run_trivy == 'true' }}
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ${{ github.workspace }}/.cache/trivy
         key: cache-trivy-${{ steps.trivy-cache-date.outputs.date }}
@@ -182,7 +182,7 @@ runs:
 
     - name: Build
       id: build
-      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile_path }}
