@@ -1,0 +1,64 @@
+name: CI
+
+# This repo had no CI at all. That mattered more here than usual: action.yaml is
+# the whole product, it is consumed by NethermindEth/github-workflows in both
+# docker-build-push-dockerhub.yaml and docker-build-push-jfrog.yaml, and those
+# are used by every repo that builds an image. So an unverified bump here can
+# break image build and push across the org with no signal anywhere.
+#
+# Dependabot also could not get anything merged, because a PR with zero checks
+# is indistinguishable from a PR whose checks have not run.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Lint action and workflow definitions
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+
+  smoke:
+    # Runs the action end to end with push-to-registry disabled, so it needs no
+    # registry credentials. That still exercises setup-buildx-action,
+    # metadata-action, build-push-action, actions/cache and trivy-action -- six
+    # of the eight actions pinned in action.yaml. Only attest-build-provenance
+    # is skipped, since it only runs when pushing.
+    name: smoke (run_trivy=${{ matrix.run_trivy }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Both legs should report; one failing must not hide the other's result.
+      fail-fast: false
+      matrix:
+        run_trivy: ["true", "false"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # action.yaml's "Setup environment" step runs `git describe --tags`,
+          # which fails on the default shallow clone with no tags.
+          fetch-depth: 0
+
+      - name: Build a throwaway image through the action, without pushing
+        uses: ./
+        with:
+          push-to-registry: "false"
+          registry: "dockerhub"
+          image_name: "nethermindeth/ci-smoke-test"
+          image_tags: "smoke"
+          # Single platform keeps the smoke test fast; multi-arch adds minutes
+          # and exercises nothing extra here.
+          platforms: "linux/amd64"
+          context: "test/smoke"
+          dockerfile_path: "test/smoke/Dockerfile"
+          run_trivy: ${{ matrix.run_trivy }}
