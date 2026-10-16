@@ -59,14 +59,6 @@ inputs:
     description: "List of build-time variables"
     required: false
     default: ""
-  ignore_trivy:
-    description: "Ignore Trivy scan errors"
-    required: false
-    default: "false"
-  run_trivy:
-    description: "Run Trivy scan"
-    required: false
-    default: "true"
 
 runs:
   using: "composite"
@@ -89,15 +81,6 @@ runs:
 
         # Extra tags
         export GIT_TAGS=$(git describe --tags --always)
-
-        # A single platform is needed for trivy and for the build-push action
-        echo "PLATFORM=$(echo ${{ inputs.platforms }} | cut -d ',' -f 1)" >> $GITHUB_ENV
-
-        # Create .trivyignore if it doesn't exist
-        if [[ ! -f .trivyignore ]]; then
-          echo "Creating .trivyignore file"
-          touch .trivyignore
-        fi
 
     - name: Set up QEMU
       if: ${{ inputs.setup-qemu == 'true' }}
@@ -122,63 +105,6 @@ runs:
           type=sha,prefix=,format=short
           ${{ inputs.image_tags != '' && format('type=raw,value={0}', inputs.image_tags) || '' }}
           type=raw,value=${{ env.GIT_TAGS }}
-
-    - name: Build temporary image
-      if: ${{ inputs.run_trivy == 'true' }}
-      # The idea here is to first build the image without pushing it, so it can be
-      # scanned by Trivy.
-      # Also, since it's not going to be pushed, it MUST use a single platform
-      # Ref: https://github.com/docker/buildx/issues/59
-      # The usage of cache helps the next step when it builds again, but multi-arch
-      id: build_temporary
-      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-      with:
-        context: ${{ inputs.context }}
-        file: ${{ inputs.dockerfile_path }}
-        platforms: ${{ env.PLATFORM }}
-        tags: temporary-tag
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: ${{ inputs.cache_from }}
-        cache-to: ${{ inputs.cache_to }}
-        load: true
-        push: false
-        secrets: ${{ inputs.secrets }}
-        secret-envs: ${{ inputs.secret-envs }}
-        secret-files: ${{ inputs.secret-files }}
-        ulimit: ${{ inputs.ulimit }}
-        build-args: ${{ inputs.build-args }}
-
-    - name: Get current date
-      if: ${{ inputs.run_trivy == 'true' }}
-      id: trivy-cache-date
-      shell: bash
-      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
-    - name: Restore Trivy DB from cache
-      if: ${{ inputs.run_trivy == 'true' }}
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ github.workspace }}/.cache/trivy
-        key: cache-trivy-${{ steps.trivy-cache-date.outputs.date }}
-        restore-keys: cache-trivy-
-
-    - name: Run Trivy vulnerability scanner
-      if: ${{ inputs.run_trivy == 'true' }}
-      id: trivy
-      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-      with:
-        image-ref: ${{ steps.build_temporary.outputs.imageid }}
-        format: "table"
-        output: "trivy-results.txt"
-        exit-code: ${{ inputs.ignore_trivy == 'true' && '0' || '1' }}
-        ignore-unfixed: true
-        severity: "CRITICAL,HIGH"
-        trivyignores: ./.trivyignore
-        version: "v0.69.2"
-        cache: "false"
-      env:
-        TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-        TRIVY_DISABLE_VEX_NOTICE: true
 
     - name: Build
       id: build
@@ -225,18 +151,3 @@ runs:
           echo "- $TAG" >> $GITHUB_STEP_SUMMARY
         done
         echo '```' >> $GITHUB_STEP_SUMMARY
-
-        echo "### Trivy Scan Output" >> $GITHUB_STEP_SUMMARY
-        if [[ -f trivy-results.txt ]]; then
-          cat trivy-results.txt
-          echo "<details><summary>Click to expand</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          while IFS= read -r line; do
-            if [[ $line == "┌"* ]]; then echo '```' >> $GITHUB_STEP_SUMMARY; fi
-            echo "$line" >> $GITHUB_STEP_SUMMARY
-            if [[ $line == *"┘" ]]; then echo '```' >> $GITHUB_STEP_SUMMARY; fi
-          done < trivy-results.txt
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "No Trivy report found." >> $GITHUB_STEP_SUMMARY
-        fi

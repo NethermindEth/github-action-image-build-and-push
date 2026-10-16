@@ -31,16 +31,10 @@ jobs:
   smoke:
     # Runs the action end to end with push-to-registry disabled, so it needs no
     # registry credentials. That still exercises setup-buildx-action,
-    # metadata-action, build-push-action, actions/cache and trivy-action -- six
-    # of the eight actions pinned in action.yaml. Only attest-build-provenance
-    # is skipped, since it only runs when pushing.
-    name: smoke (run_trivy=${{ matrix.run_trivy }})
+    # metadata-action and build-push-action. attest-build-provenance only runs
+    # when pushing, and setup-qemu only when requested.
+    name: smoke
     runs-on: ubuntu-latest
-    strategy:
-      # Both legs should report; one failing must not hide the other's result.
-      fail-fast: false
-      matrix:
-        run_trivy: ["true", "false"]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,4 +55,3 @@ jobs:
           platforms: "linux/amd64"
           context: "test/smoke"
           dockerfile_path: "test/smoke/Dockerfile"
-          run_trivy: ${{ matrix.run_trivy }}
