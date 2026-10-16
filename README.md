@@ -1,12 +1,11 @@
 # Build and Push Image GitHub Action
 
-A comprehensive GitHub Action for building and pushing Docker/OCI images to registries with built-in security scanning and multi-platform support.
+A comprehensive GitHub Action for building and pushing Docker/OCI images to registries with multi-platform support.
 
 ## Features
 
 - 🐳 **Multi-Registry Support**: Supports both Docker Hub (public images) and Artifactory (private images)
 - 🏗️ **Multi-Platform Builds**: Build for multiple architectures simultaneously (default: linux/amd64, linux/arm64)
-- 🔒 **Security Scanning**: Integrated Trivy vulnerability scanning before pushing
 - 📦 **Build Attestations**: Generates SLSA build provenance attestations
 - ⚡ **Smart Caching**: GitHub Actions cache integration for faster builds
 - 🔑 **Secrets Management**: Support for build secrets, environment variables, and files
@@ -163,20 +162,9 @@ jobs:
 | `secret-files` | Secret files | ❌ | `""` |
 | `ulimit` | Ulimit options | ❌ | `""` |
 | `build-args` | Build-time variables | ❌ | `""` |
-| `run_trivy` | Run Trivy scan | ❌ | `true` |
-| `ignore_trivy` | Ignore Trivy scan errors | ❌ | `false` |
 
 
 ## Security Features
-
-### Vulnerability Scanning
-
-The action automatically scans images for vulnerabilities using Trivy before pushing:
-
-- Scans for **CRITICAL** and **HIGH** severity vulnerabilities
-- Fails the build if vulnerabilities are found
-- Supports `.trivyignore` file for suppressing specific vulnerabilities
-- Only scans for fixed vulnerabilities by default
 
 ### Build Attestations
 
@@ -226,11 +214,6 @@ cache_to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 2. **Platform Build Failures**
    - Set `setup-qemu: "true"` for cross-platform builds
    - Some base images may not support all platforms
-
-3. **Trivy Scan Failures**
-   - Review the security scan results
-   - Add entries to `.trivyignore` if needed
-   - Update base images to fix vulnerabilities
 
 
 ## Contributing
